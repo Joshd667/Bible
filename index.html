@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="light" x-data="bibleApp()">
+<html lang="en" class="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -63,7 +63,7 @@
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans transition-colors duration-300">
 
-    <div class="flex flex-col h-screen">
+    <div x-data="bibleApp()" class="flex flex-col h-screen">
         <!-- Header -->
         <header class="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center z-20 no-print">
             <div class="flex items-center space-x-4">
@@ -298,8 +298,6 @@
     <script>
         function bibleApp() {
             return {
-
-
                 // --- Data ---
                 bibleBooks: [
                     { name: 'Genesis', chapters: 50 }, { name: 'Exodus', chapters: 40 }, { name: 'Leviticus', chapters: 27 },
@@ -393,7 +391,11 @@
                 
                 loadSavedState() {
                     // Load theme
-                    this.isDark = document.documentElement.classList.contains('dark');
+                    const savedTheme = localStorage.getItem('bible-theme');
+                    if (savedTheme === 'dark') {
+                        this.isDark = true;
+                        document.documentElement.classList.add('dark');
+                    }
                     
                     // Load font size
                     const savedFontSize = localStorage.getItem('bible-font-size');
@@ -804,7 +806,7 @@
                         const verseNumber = this.showVerseNumbers ? 
                             `<sup class="text-blue-600 dark:text-blue-400 font-semibold cursor-pointer hover:text-blue-800 dark:hover:text-blue-300 ${isBookmarked ? 'text-yellow-500' : ''}" 
                                  data-verse="${v.verse}" 
-                                 onclick="window.bibleAppInstance.addBookmark({verse: ${v.verse}, text: \`${v.text.replace(/`/g, '\\`').replace(/\$/g, '\\)}\`})"
+                                 onclick="Alpine.store('app').addBookmark({verse: ${v.verse}, text: \`${v.text.replace(/`/g, '\\`').replace(/\$/g, '\\)}\`})"
                                  title="${isBookmarked ? 'Remove bookmark' : 'Add bookmark'}">${v.verse}</sup> ` : '';
                         
                         const noteIndicator = note ? 
@@ -814,9 +816,7 @@
                         
                         let text = v.text.trim();
                         if (this.searchQuery.length >= 3 && !this.isReference(this.searchQuery)) {
-                            const regex = new RegExp(`(${this.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\                loadSavedState() {
-                    // Load theme
-                    this')})`, 'gi');
+                            const regex = new RegExp(`(${this.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\                version2:')})`, 'gi');
                             text = text.replace(regex, '<span class="search-highlight">$1</span>');
                         }
                         
@@ -845,7 +845,7 @@
                         const verseNumber = this.showVerseNumbers ? 
                             `<sup class="text-blue-600 dark:text-blue-400 font-semibold cursor-pointer hover:text-blue-800 dark:hover:text-blue-300 ${isBookmarked ? 'text-yellow-500' : ''}" 
                                  data-verse="${v1.verse}" 
-                                 onclick="window.bibleAppInstance.addBookmark({verse: ${v1.verse}, text: \`${v1.text.replace(/`/g, '\\`').replace(/\$/g, '\\)}\`})"
+                                 onclick="Alpine.store('app').addBookmark({verse: ${v1.verse}, text: \`${v1.text.replace(/`/g, '\\`').replace(/\$/g, '\\)}\`})"
                                  title="${isBookmarked ? 'Remove bookmark' : 'Add bookmark'}">${v1.verse}</sup> ` : '';
                         
                         const noteIndicator = note ? 
@@ -857,9 +857,7 @@
                         let text2 = v2Text.trim();
                         
                         if (this.searchQuery.length >= 3 && !this.isReference(this.searchQuery)) {
-                            const regex = new RegExp(`(${this.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\                loadSavedState() {
-                    // Load theme
-                    this')})`, 'gi');
+                            const regex = new RegExp(`(${this.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\                version2:')})`, 'gi');
                             text1 = text1.replace(regex, '<span class="search-highlight">$1</span>');
                             text2 = text2.replace(regex, '<span class="search-highlight">$1</span>');
                         }
@@ -939,13 +937,6 @@
                 }
             }
         }
-
-        // Global reference for onclick handlers
-        window.bibleApp = function() {
-            // Get the Alpine component instance
-            const element = document.querySelector('[x-data]');
-            return element ? Alpine.$data(element) : null;
-        };
     </script>
 </body>
 </html>
