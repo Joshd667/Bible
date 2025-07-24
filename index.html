@@ -6,40 +6,7 @@
     <title>My Bible App</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-    <script>
-        // Apply theme from localStorage on initial load
-        if (localStorage.getItem('bible-theme') === 'dark' || (!('bible-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
-
-        // Custom Tailwind theme configuration
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        serif: ['Merriweather', 'serif'],
-                    },
-                },
-            },
-        }
-    </script>
     <style>
-        /* Basic styling for scrollbars */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #555; }
-        .dark ::-webkit-scrollbar-track { background: #2d3748; }
-        .dark ::-webkit-scrollbar-thumb { background: #718096; }
-        .dark ::-webkit-scrollbar-thumb:hover { background: #a0aec0; }
-        
         /* Loading spinner animation */
         .loader {
             border-top-color: #3498db;
@@ -63,11 +30,6 @@
         .highlight-blue { background-color: #dbeafe; }
         .highlight-pink { background-color: #fce7f3; }
         .highlight-purple { background-color: #e9d5ff; }
-        .dark .highlight-yellow { background-color: #451a03; }
-        .dark .highlight-green { background-color: #064e3b; }
-        .dark .highlight-blue { background-color: #1e3a8a; }
-        .dark .highlight-pink { background-color: #831843; }
-        .dark .highlight-purple { background-color: #581c87; }
 
         /* Search highlight */
         .search-highlight {
@@ -156,11 +118,6 @@
                     <svg x-show="!isDark" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.706-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm-.707 10.607a1 1 0 011.414 0l.707-.707a1 1 0 111.414 1.414l-.707.707a1 1 0 01-1.414 0zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path></svg>
                     <svg x-show="isDark" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
                 </button>
-
-                <!-- Print -->
-                <button @click="window.print()" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" title="Print">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-                </button>
             </div>
         </header>
 
@@ -171,7 +128,7 @@
             <!-- Show Verse Numbers -->
             <div class="mb-4">
                 <label class="flex items-center">
-                    <input type="checkbox" x-model="showVerseNumbers" @change="saveShowVerseNumbers()" class="mr-2">
+                    <input type="checkbox" x-model="showVerseNumbers" @change="loadChapter()" class="mr-2">
                     <span class="text-sm">Show verse numbers</span>
                 </label>
             </div>
@@ -266,7 +223,7 @@
 
                 <div x-show="hasError" class="text-center text-red-500 mt-8 p-4 bg-red-100 dark:bg-red-900/20 rounded-lg">
                     <p class="font-bold">Oops! Something went wrong.</p>
-                    <p>Could not load the chapter. One of the selected versions might not be available. Please try another version.</p>
+                    <p>Could not load the chapter. Please try refreshing the page.</p>
                 </div>
             </div>
         </main>
@@ -341,43 +298,55 @@
     <script>
         function bibleApp() {
             return {
+                // Sample Bible data built-in for demonstration
+                sampleBibleData: {
+                    "Genesis": {
+                        1: {
+                            1: "In the beginning God created the heaven and the earth.",
+                            2: "And the earth was without form, and void; and darkness was upon the face of the deep. And the Spirit of God moved upon the face of the waters.",
+                            3: "And God said, Let there be light: and there was light.",
+                            4: "And God saw the light, that it was good: and God divided the light from the darkness.",
+                            5: "And God called the light Day, and the darkness he called Night. And the evening and the morning were the first day."
+                        },
+                        2: {
+                            1: "Thus the heavens and the earth were finished, and all the host of them.",
+                            2: "And on the seventh day God ended his work which he had made; and he rested on the seventh day from all his work which he had made.",
+                            3: "And God blessed the seventh day, and sanctified it: because that in it he had rested from all his work which God created and made."
+                        }
+                    },
+                    "John": {
+                        3: {
+                            16: "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.",
+                            17: "For God sent not his Son into the world to condemn the world; but that the world through him might be saved.",
+                            18: "He that believeth on him is not condemned: but he that believeth not is condemned already, because he hath not believed in the name of the only begotten Son of God."
+                        }
+                    },
+                    "Psalms": {
+                        23: {
+                            1: "The Lord is my shepherd; I shall not want.",
+                            2: "He maketh me to lie down in green pastures: he leadeth me beside the still waters.",
+                            3: "He restoreth my soul: he leadeth me in the paths of righteousness for his name's sake.",
+                            4: "Yea, though I walk through the valley of the shadow of death, I will fear no evil: for thou art with me; thy rod and thy staff they comfort me.",
+                            5: "Thou preparest a table before me in the presence of mine enemies: thou anointest my head with oil; my cup runneth over.",
+                            6: "Surely goodness and mercy shall follow me all the days of my life: and I will dwell in the house of the Lord for ever."
+                        }
+                    }
+                },
+
                 // --- Data ---
                 bibleBooks: [
-                    { name: 'Genesis', chapters: 50 }, { name: 'Exodus', chapters: 40 }, { name: 'Leviticus', chapters: 27 },
-                    { name: 'Numbers', chapters: 36 }, { name: 'Deuteronomy', chapters: 34 }, { name: 'Joshua', chapters: 24 },
-                    { name: 'Judges', chapters: 21 }, { name: 'Ruth', chapters: 4 }, { name: '1 Samuel', chapters: 31 },
-                    { name: '2 Samuel', chapters: 24 }, { name: '1 Kings', chapters: 22 }, { name: '2 Kings', chapters: 25 },
-                    { name: '1 Chronicles', chapters: 29 }, { name: '2 Chronicles', chapters: 36 }, { name: 'Ezra', chapters: 10 },
-                    { name: 'Nehemiah', chapters: 13 }, { name: 'Esther', chapters: 10 }, { name: 'Job', chapters: 42 },
-                    { name: 'Psalms', chapters: 150 }, { name: 'Proverbs', chapters: 31 }, { name: 'Ecclesiastes', chapters: 12 },
-                    { name: 'Song of Solomon', chapters: 8 }, { name: 'Isaiah', chapters: 66 }, { name: 'Jeremiah', chapters: 52 },
-                    { name: 'Lamentations', chapters: 5 }, { name: 'Ezekiel', chapters: 48 }, { name: 'Daniel', chapters: 12 },
-                    { name: 'Hosea', chapters: 14 }, { name: 'Joel', chapters: 3 }, { name: 'Amos', chapters: 9 },
-                    { name: 'Obadiah', chapters: 1 }, { name: 'Jonah', chapters: 4 }, { name: 'Micah', chapters: 7 },
-                    { name: 'Nahum', chapters: 3 }, { name: 'Habakkuk', chapters: 3 }, { name: 'Zephaniah', chapters: 3 },
-                    { name: 'Haggai', chapters: 2 }, { name: 'Zechariah', chapters: 14 }, { name: 'Malachi', chapters: 4 },
-                    { name: 'Matthew', chapters: 28 }, { name: 'Mark', chapters: 16 }, { name: 'Luke', chapters: 24 },
-                    { name: 'John', chapters: 21 }, { name: 'Acts', chapters: 28 }, { name: 'Romans', chapters: 16 },
-                    { name: '1 Corinthians', chapters: 16 }, { name: '2 Corinthians', chapters: 13 }, { name: 'Galatians', chapters: 6 },
-                    { name: 'Ephesians', chapters: 6 }, { name: 'Philippians', chapters: 4 }, { name: 'Colossians', chapters: 4 },
-                    { name: '1 Thessalonians', chapters: 5 }, { name: '2 Thessalonians', chapters: 3 }, { name: '1 Timothy', chapters: 6 },
-                    { name: '2 Timothy', chapters: 4 }, { name: 'Titus', chapters: 3 }, { name: 'Philemon', chapters: 1 },
-                    { name: 'Hebrews', chapters: 13 }, { name: 'James', chapters: 5 }, { name: '1 Peter', chapters: 5 },
-                    { name: '2 Peter', chapters: 3 }, { name: '1 John', chapters: 5 }, { name: '2 John', chapters: 1 },
-                    { name: '3 John', chapters: 1 }, { name: 'Jude', chapters: 1 }, { name: 'Revelation', chapters: 22 }
+                    { name: 'Genesis', chapters: 50 }, { name: 'Exodus', chapters: 40 }, { name: 'John', chapters: 21 }, { name: 'Psalms', chapters: 150 }
                 ],
                 bibleVersions: [
-                    { id: 'ESV', name: 'English Standard Version' },
-                    { id: 'ESVUK', name: 'English Standard Version (UK)' },
                     { id: 'KJV', name: 'King James Version' },
-                    { id: 'NIVUK', name: 'New International Version (UK)' }
+                    { id: 'ESV', name: 'English Standard Version' }
                 ],
                 
                 // --- State ---
                 selectedBook: 'Genesis',
                 selectedChapter: 1,
-                version1: 'ESV',
-                version2: 'KJV',
+                version1: 'KJV',
+                version2: 'ESV',
                 isParallel: false,
                 fontSize: 16,
                 isDark: false,
@@ -414,13 +383,12 @@
                 
                 get canGoNext() {
                     const bookIndex = this.bibleBooks.findIndex(b => b.name === this.selectedBook);
-                    const isLastChapter = this.selectedChapter === this.bibleBooks[bookIndex].chapters;
+                    const isLastChapter = this.selectedChapter === this.currentBook?.chapters;
                     return !(bookIndex === this.bibleBooks.length - 1 && isLastChapter);
                 },
 
                 get readingProgress() {
-                    const bookIndex = this.bibleBooks.findIndex(b => b.name === this.selectedBook);
-                    const currentBook = this.bibleBooks[bookIndex];
+                    const currentBook = this.currentBook;
                     if (!currentBook) return 0;
                     return ((this.selectedChapter - 1) / currentBook.chapters) * 100;
                 },
@@ -494,13 +462,8 @@
                     localStorage.setItem('bible-state', JSON.stringify(state));
                 },
 
-                saveShowVerseNumbers() {
-                    localStorage.setItem('bible-show-verse-numbers', this.showVerseNumbers);
-                    this.loadChapter(); // Reload to apply changes
-                },
-
                 // Search functionality
-                async performSearch() {
+                performSearch() {
                     if (this.searchQuery.length < 3) {
                         this.searchResults = [];
                         return;
@@ -513,47 +476,25 @@
 
                     this.searchResults = [];
                     
-                    try {
-                        // Search through current version (limited search for demo)
-                        const searchBooks = this.bibleBooks.slice(0, 5); // Search first 5 books for demo
-                        
-                        for (const book of searchBooks) {
-                            const filename = book.name.replace(/\s+/g, ' ');
-                            const url = `translations/${this.version1}/${filename}.json`;
-                            
-                            try {
-                                const response = await fetch(url);
-                                if (!response.ok) continue;
-                                
-                                const data = await response.json();
-                                const bookData = data[book.name];
-                                
-                                if (bookData) {
-                                    for (const [chapter, verses] of Object.entries(bookData)) {
-                                        for (const [verse, text] of Object.entries(verses)) {
-                                            if (text.toLowerCase().includes(this.searchQuery.toLowerCase())) {
-                                                this.searchResults.push({
-                                                    book: book.name,
-                                                    chapter: parseInt(chapter),
-                                                    verse: parseInt(verse),
-                                                    reference: `${book.name} ${chapter}:${verse}`,
-                                                    text: text.substring(0, 100) + (text.length > 100 ? '...' : '')
-                                                });
-                                                
-                                                if (this.searchResults.length >= 10) break;
-                                            }
-                                        }
-                                        if (this.searchResults.length >= 10) break;
-                                    }
+                    // Search through sample data
+                    for (const [bookName, bookData] of Object.entries(this.sampleBibleData)) {
+                        for (const [chapter, verses] of Object.entries(bookData)) {
+                            for (const [verse, text] of Object.entries(verses)) {
+                                if (text.toLowerCase().includes(this.searchQuery.toLowerCase())) {
+                                    this.searchResults.push({
+                                        book: bookName,
+                                        chapter: parseInt(chapter),
+                                        verse: parseInt(verse),
+                                        reference: `${bookName} ${chapter}:${verse}`,
+                                        text: text.substring(0, 100) + (text.length > 100 ? '...' : '')
+                                    });
+                                    
+                                    if (this.searchResults.length >= 10) break;
                                 }
-                            } catch (error) {
-                                console.warn(`Could not search ${book.name}:`, error);
                             }
-                            
                             if (this.searchResults.length >= 10) break;
                         }
-                    } catch (error) {
-                        console.error('Search error:', error);
+                        if (this.searchResults.length >= 10) break;
                     }
                 },
 
@@ -782,20 +723,18 @@
                     URL.revokeObjectURL(url);
                 },
                 
-                async loadChapter() {
+                loadChapter() {
                     this.isLoading = true;
                     this.hasError = false;
                     this.chapterContent = '';
                     
                     try {
+                        const data = this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version1);
+                        
                         if (this.isParallel) {
-                            const [data1, data2] = await Promise.all([
-                                this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version1),
-                                this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version2)
-                            ]);
-                            this.renderParallelView(data1, data2);
+                            const data2 = this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version2);
+                            this.renderParallelView(data, data2);
                         } else {
-                            const data = await this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version1);
                             this.renderSingleView(data);
                         }
                         
@@ -812,17 +751,8 @@
                     }
                 },
                 
-                async fetchChapterData(book, chapter, version) {
-                    const filename = book.replace(/\s+/g, ' ');
-                    const url = `translations/${version}/${filename}.json`;
-                    
-                    const response = await fetch(url);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status} for ${url}`);
-                    }
-                    
-                    const data = await response.json();
-                    const bookData = data[book];
+                fetchChapterData(book, chapter, version) {
+                    const bookData = this.sampleBibleData[book];
                     if (!bookData || !bookData[chapter]) {
                         throw new Error(`Chapter ${chapter} not found in ${book}`);
                     }
@@ -860,7 +790,9 @@
                         
                         let text = v.text.trim();
                         if (this.searchQuery.length >= 3 && !this.isReference(this.searchQuery)) {
-                            const regex = new RegExp(`(${this.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\                    { name: 'Hosea', chapters: ')})`, 'gi');
+                            const regex = new RegExp(`(${this.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\                loadSavedState() {
+                    // Load theme
+                    this')})`, 'gi');
                             text = text.replace(regex, '<span class="search-highlight">$1</span>');
                         }
                         
@@ -901,7 +833,9 @@
                         let text2 = v2Text.trim();
                         
                         if (this.searchQuery.length >= 3 && !this.isReference(this.searchQuery)) {
-                            const regex = new RegExp(`(${this.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\                    { name: 'Hosea', chapters: ')})`, 'gi');
+                            const regex = new RegExp(`(${this.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\                loadSavedState() {
+                    // Load theme
+                    this')})`, 'gi');
                             text1 = text1.replace(regex, '<span class="search-highlight">$1</span>');
                             text2 = text2.replace(regex, '<span class="search-highlight">$1</span>');
                         }
