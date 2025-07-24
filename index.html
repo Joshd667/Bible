@@ -941,16 +941,11 @@
         }
 
         // Global reference for onclick handlers
-        let bibleAppInstance;
-        
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('bibleApp', () => {
-                const app = bibleApp();
-                bibleAppInstance = app;
-                window.bibleAppInstance = app;
-                return app;
-            });
-        });
+        window.bibleApp = function() {
+            // Get the Alpine component instance
+            const element = document.querySelector('[x-data]');
+            return element ? Alpine.$data(element) : null;
+        };
     </script>
 </body>
 </html>
