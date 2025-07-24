@@ -138,7 +138,7 @@
             
             <select x-model="selectedChapter" @change="chapterChanged()" class="w-full sm:w-auto p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <template x-for="i in (currentBook?.chapters || 0)" :key="i">
-                    <option :value="i+1" x-text="`Chapter ${i+1}`"></option>
+                    <option :value="i + 1" x-text="`Chapter ${i + 1}`"></option>
                 </template>
             </select>
             
@@ -206,7 +206,7 @@
 
                 <div x-show="hasError" class="text-center text-red-500 mt-8 p-4 bg-red-100 dark:bg-red-900/20 rounded-lg" style="display: none;">
                     <p class="font-bold">Oops! Something went wrong.</p>
-                    <p>Could not load the chapter. Please try refreshing the page.</p>
+                    <p x-text="errorMessage"></p>
                 </div>
             </div>
         </main>
@@ -277,7 +277,7 @@
     <script>
         function bibleApp() {
             return {
-                // --- Data ---
+                // --- DATA ---
                 bibleBooks: [
                     { name: 'Genesis', chapters: 50 }, { name: 'Exodus', chapters: 40 }, { name: 'Leviticus', chapters: 27 },
                     { name: 'Numbers', chapters: 36 }, { name: 'Deuteronomy', chapters: 34 }, { name: 'Joshua', chapters: 24 },
@@ -310,7 +310,7 @@
                     { id: 'NKJV', name: 'New King James Version' }
                 ],
                 
-                // --- State ---
+                // --- STATE ---
                 selectedBook: 'Genesis',
                 selectedChapter: 1,
                 version1: 'KJV',
@@ -320,11 +320,10 @@
                 isDark: false,
                 isLoading: true,
                 hasError: false,
+                errorMessage: '',
                 chapterTitle: '',
                 chapterContent: '',
                 currentLocation: '',
-                
-                // New features state
                 searchQuery: '',
                 searchResults: [],
                 selectedText: '',
@@ -339,88 +338,55 @@
                 notes: new Map(),
                 showVerseNumbers: true,
                 
-                // --- Computed Properties ---
+                // --- COMPUTED ---
                 get currentBook() {
                     return this.bibleBooks.find(book => book.name === this.selectedBook);
                 },
-                
                 get canGoPrev() {
                     const bookIndex = this.bibleBooks.findIndex(b => b.name === this.selectedBook);
                     return !(bookIndex === 0 && this.selectedChapter === 1);
                 },
-                
                 get canGoNext() {
+                    if (!this.currentBook) return false;
                     const bookIndex = this.bibleBooks.findIndex(b => b.name === this.selectedBook);
-                    const isLastChapter = this.selectedChapter === this.currentBook?.chapters;
-                    return !(bookIndex === this.bibleBooks.length - 1 && isLastChapter);
+                    return !(bookIndex === this.bibleBooks.length - 1 && this.selectedChapter === this.currentBook.chapters);
+                },
+                get readingProgress() {
+                    if (!this.currentBook || this.currentBook.chapters <= 1) return 0;
+                    return ((this.selectedChapter - 1) / (this.currentBook.chapters - 1)) * 100;
                 },
 
-                get readingProgress() {
-                    const currentBook = this.currentBook;
-                    if (!currentBook) return 0;
-                    return ((this.selectedChapter - 1) / (currentBook.chapters -1)) * 100;
-                },
-                
-                // --- Methods ---
+                // --- METHODS ---
                 init() {
+                    window.bibleApp = this; // Make methods globally accessible
                     this.loadSavedState();
                     this.loadUserData();
                     this.loadChapter();
-
-                    // This makes the component's methods available to the dynamic HTML
-                    window.bibleApp = this;
                 },
                 
                 loadSavedState() {
-                    // Load theme
                     const savedTheme = localStorage.getItem('bible-theme');
-                    if (savedTheme === 'dark') {
-                        this.isDark = true;
-                        document.documentElement.classList.add('dark');
-                    } else {
-                        this.isDark = false;
-                        document.documentElement.classList.remove('dark');
+                    if (savedTheme) {
+                        this.isDark = savedTheme === 'dark';
+                        document.documentElement.classList.toggle('dark', this.isDark);
                     }
-                    
-                    // Load font size
                     const savedFontSize = localStorage.getItem('bible-font-size');
-                    if (savedFontSize) {
-                        this.fontSize = Number(savedFontSize);
-                    }
-                    
-                    // Load verse numbers setting
+                    if (savedFontSize) this.fontSize = Number(savedFontSize);
                     const savedShowVerseNumbers = localStorage.getItem('bible-show-verse-numbers');
-                    if (savedShowVerseNumbers !== null) {
-                        this.showVerseNumbers = savedShowVerseNumbers === 'true';
-                    }
+                    if (savedShowVerseNumbers) this.showVerseNumbers = savedShowVerseNumbers === 'true';
                     
-                    // Load Bible state
                     const savedState = JSON.parse(localStorage.getItem('bible-state') || '{}');
-                    if (savedState.book) this.selectedBook = savedState.book;
-                    if (savedState.chapter) this.selectedChapter = savedState.chapter;
-                    if (savedState.version1) this.version1 = savedState.version1;
-                    if (savedState.version2) this.version2 = savedState.version2;
-                    if (savedState.parallel !== undefined) this.isParallel = savedState.parallel;
+                    this.selectedBook = savedState.book || 'Genesis';
+                    this.selectedChapter = savedState.chapter || 1;
+                    this.version1 = savedState.version1 || 'KJV';
+                    this.version2 = savedState.version2 || 'ESV';
+                    this.isParallel = savedState.parallel || false;
                 },
 
                 loadUserData() {
-                    // Load bookmarks
-                    const savedBookmarks = localStorage.getItem('bible-bookmarks');
-                    if (savedBookmarks) {
-                        this.bookmarks = JSON.parse(savedBookmarks);
-                    }
-                    
-                    // Load highlights
-                    const savedHighlights = localStorage.getItem('bible-highlights');
-                    if (savedHighlights) {
-                        this.highlights = new Map(JSON.parse(savedHighlights));
-                    }
-                    
-                    // Load notes
-                    const savedNotes = localStorage.getItem('bible-notes');
-                    if (savedNotes) {
-                        this.notes = new Map(JSON.parse(savedNotes));
-                    }
+                    this.bookmarks = JSON.parse(localStorage.getItem('bible-bookmarks') || '[]');
+                    this.highlights = new Map(JSON.parse(localStorage.getItem('bible-highlights') || '[]'));
+                    this.notes = new Map(JSON.parse(localStorage.getItem('bible-notes') || '[]'));
                 },
 
                 saveUserData() {
@@ -428,7 +394,7 @@
                     localStorage.setItem('bible-highlights', JSON.stringify([...this.highlights]));
                     localStorage.setItem('bible-notes', JSON.stringify([...this.notes]));
                 },
-                
+
                 saveState() {
                     const state = {
                         book: this.selectedBook,
@@ -445,67 +411,85 @@
                     this.loadChapter();
                 },
 
-                // Search functionality
+                async fetchChapterData(bookName, chapter, version) {
+                    const url = `translations/${version}/${bookName}.json`;
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`Could not load translation file: ${url}. Check if the file exists and the path is correct.`);
+                    const bookData = await response.json();
+                    if (!bookData[bookName] || !bookData[bookName][chapter]) {
+                        throw new Error(`Chapter ${chapter} not found in the file for ${bookName}.`);
+                    }
+                    return {
+                        book: bookName,
+                        chapter: chapter,
+                        verses: Object.entries(bookData[bookName][chapter]).map(([verse, text]) => ({
+                            verse: parseInt(verse),
+                            text: text
+                        }))
+                    };
+                },
+
+                // --- SEARCH ---
                 async performSearch() {
                     if (this.searchQuery.length < 3) {
                         this.searchResults = [];
                         return;
                     }
-
-                    if (this.isReference(this.searchQuery)) {
-                        return;
-                    }
+                    if (this.isReference(this.searchQuery)) return;
 
                     this.isLoading = true;
                     this.searchResults = [];
-                    
-                    try {
-                        const query = this.searchQuery.toLowerCase();
-                        // This is a simplified search. A real app would use a more robust search engine.
-                        const url = `https://www.bible-api.com/verses/${this.version1}?q=${query}`;
-                        const response = await fetch(url);
-                         if (!response.ok) {
-                            throw new Error('Search failed');
-                        }
-                        const data = await response.json();
-                        
-                        this.searchResults = data.verses.map(verse => ({
-                           book: verse.book_name,
-                           chapter: verse.chapter,
-                           verse: verse.verse,
-                           reference: verse.reference,
-                           text: verse.text.replace(new RegExp(`(${this.searchQuery})`, 'gi'), '<b class="search-highlight">$1</b>')
-                        }));
+                    const query = this.searchQuery.toLowerCase();
+                    const queryRegex = new RegExp(`(${this.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
 
-                    } catch (error) {
-                        console.error('Search error:', error);
-                        this.searchResults = [];
-                    } finally {
-                        this.isLoading = false;
+                    for (const book of this.bibleBooks) {
+                        try {
+                            const url = `translations/${this.version1}/${book.name}.json`;
+                            const response = await fetch(url);
+                            if (!response.ok) continue;
+                            const data = await response.json();
+                            const bookData = data[book.name];
+
+                            if (bookData) {
+                                for (const [chapterNum, verses] of Object.entries(bookData)) {
+                                    for (const [verseNum, text] of Object.entries(verses)) {
+                                        if (text.toLowerCase().includes(query)) {
+                                            const highlightedText = text.replace(queryRegex, `<span class="search-highlight">$1</span>`);
+                                            this.searchResults.push({
+                                                book: book.name,
+                                                chapter: parseInt(chapterNum),
+                                                verse: parseInt(verseNum),
+                                                reference: `${book.name} ${chapterNum}:${verseNum}`,
+                                                text: highlightedText.substring(0, 150) + (text.length > 150 ? '...' : '')
+                                            });
+                                            if (this.searchResults.length >= 20) break;
+                                        }
+                                    }
+                                    if (this.searchResults.length >= 20) break;
+                                }
+                            }
+                        } catch (e) { console.warn(`Could not search in ${book.name}.json`); }
+                        if (this.searchResults.length >= 20) break;
                     }
+                    this.isLoading = false;
                 },
 
                 isReference(query) {
-                    const referencePattern = /^\d?\s?[a-zA-Z]+\s\d+:?\d*(-d*)?$/i;
+                    const referencePattern = /^\d?\s?[a-zA-Z\s]+\s\d+(:(\d+))?$/i;
                     return referencePattern.test(query.trim());
                 },
 
                 quickJump() {
                     if (!this.isReference(this.searchQuery)) return;
-                    
                     const query = this.searchQuery.trim();
-                    const parts = query.match(/^(\d?\s?[a-zA-Z]+)\s(\d+):?(\d*)?$/i);
-                    
+                    const parts = query.match(/^((\d\s)?([a-zA-Z\s]+))\s(\d+):?(\d+)?$/i);
                     if (!parts) return;
-
-                    const bookName = parts[1].trim();
-                    const chapter = parseInt(parts[2]);
-                    const verse = parts[3] ? parseInt(parts[3]) : null;
-
-                    const book = this.bibleBooks.find(b => 
-                        b.name.toLowerCase() === bookName.toLowerCase()
-                    );
                     
+                    const bookName = (parts[2] ? parts[2] : '' + parts[3]).trim();
+                    const chapter = parseInt(parts[4]);
+                    const verse = parts[5] ? parseInt(parts[5]) : null;
+
+                    const book = this.bibleBooks.find(b => b.name.toLowerCase() === bookName.toLowerCase());
                     if (book && chapter <= book.chapters) {
                         this.selectedBook = book.name;
                         this.selectedChapter = chapter;
@@ -514,13 +498,11 @@
                         this.loadChapter().then(() => {
                             if (verse) {
                                 this.$nextTick(() => {
-                                    const verseElement = document.querySelector(`[data-verse-number='${verse}']`);
-                                    if (verseElement) {
-                                        verseElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                        verseElement.classList.add('search-highlight');
-                                        setTimeout(() => {
-                                            verseElement.classList.remove('search-highlight');
-                                        }, 3000);
+                                    const el = document.querySelector(`[data-verse-number='${verse}']`);
+                                    if (el) {
+                                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        el.classList.add('search-highlight');
+                                        setTimeout(() => el.classList.remove('search-highlight'), 3000);
                                     }
                                 });
                             }
@@ -536,13 +518,11 @@
                     this.showBookmarks = false;
                     this.loadChapter().then(() => {
                         this.$nextTick(() => {
-                            const verseElement = document.querySelector(`[data-verse-number='${result.verse}']`);
-                             if (verseElement) {
-                                verseElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                verseElement.classList.add('search-highlight');
-                                setTimeout(() => {
-                                    verseElement.classList.remove('search-highlight');
-                                }, 3000);
+                            const el = document.querySelector(`[data-verse-number='${result.verse}']`);
+                             if (el) {
+                                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                el.classList.add('search-highlight');
+                                setTimeout(() => el.classList.remove('search-highlight'), 3000);
                             }
                         });
                     });
@@ -554,8 +534,9 @@
                     this.showTableOfContents = false;
                     this.loadChapter();
                 },
-                
-                clearSelection() {
+
+                // ... other functions
+                 clearSelection() {
                     this.selectedText = '';
                     this.selectedVerseInfo = null;
                     window.getSelection().removeAllRanges();
@@ -612,6 +593,10 @@
                 addNote() {
                     if (!this.selectedVerseInfo) return;
                     this.showNoteModal = true;
+                    // Pre-fill note if one exists
+                    const key = `${this.selectedVerseInfo.book}-${this.selectedVerseInfo.chapter}-${this.selectedVerseInfo.verse}`;
+                    const existingNote = this.notes.get(key);
+                    this.currentNote = existingNote || '';
                 },
 
                 saveNote() {
@@ -664,108 +649,21 @@
                     });
                     
                     this.saveUserData();
+                    // Force a re-render to show the bookmark indicator
+                    this.loadChapter();
                 },
 
                 removeBookmark(id) {
                     this.bookmarks = this.bookmarks.filter(b => b.id !== id);
                     this.saveUserData();
+                    this.loadChapter();
                 },
 
                 isBookmarked(verseNumber) {
                     const reference = `${this.selectedBook} ${this.selectedChapter}:${verseNumber}`;
                     return this.bookmarks.some(b => b.reference === reference);
                 },
-
-                // Keyboard shortcuts
-                handleKeyboard(event) {
-                    if (['INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
-                    
-                    switch(event.key) {
-                        case 'ArrowLeft':
-                            event.preventDefault();
-                            this.prevChapter();
-                            break;
-                        case 'ArrowRight':
-                        case ' ':
-                            event.preventDefault();
-                            this.nextChapter();
-                            break;
-                        case 'f':
-                            if (event.ctrlKey || event.metaKey) {
-                                event.preventDefault();
-                                document.querySelector('input[type="text"]').focus();
-                            }
-                            break;
-                    }
-                },
-
-                // Export functionality
-                exportNotes() {
-                    const data = {
-                        bookmarks: this.bookmarks,
-                        highlights: [...this.highlights],
-                        notes: [...this.notes],
-                        exportDate: new Date().toISOString()
-                    };
-                    
-                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `bible-notes-${new Date().toISOString().split('T')[0]}.json`;
-                    document.body.appendChild(a);
-a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                },
                 
-                async loadChapter() {
-                    this.isLoading = true;
-                    this.hasError = false;
-                    
-                    try {
-                        if (this.isParallel) {
-                            const [data1, data2] = await Promise.all([
-                                this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version1),
-                                this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version2)
-                            ]);
-                            this.renderParallelView(data1, data2);
-                        } else {
-                            const data = await this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version1);
-                            this.renderSingleView(data);
-                        }
-                        
-                        this.chapterTitle = `${this.selectedBook} ${this.selectedChapter}`;
-                        this.currentLocation = `${this.selectedBook} ${this.selectedChapter}`;
-                        this.saveState();
-                    } catch (error) {
-                        console.error("Failed to fetch chapter:", error);
-                        this.hasError = true;
-                        this.chapterTitle = "Error";
-                        this.currentLocation = "Error";
-                    } finally {
-                        this.isLoading = false;
-                        this.clearSelection();
-                    }
-                },
-                
-                async fetchChapterData(book, chapter, version) {
-                    // Using a public API for demonstration. 
-                    const url = `https://www.bible-api.com/${book}+${chapter}?translation=${version.toLowerCase()}`;
-                    
-                    const response = await fetch(url);
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status} for ${url}`);
-                    }
-                    
-                    const data = await response.json();
-                     if (!data || !data.verses) {
-                        throw new Error(`Chapter ${chapter} not found in ${book}`);
-                    }
-                    
-                    return data;
-                },
-
                 escapeHtml(unsafe) {
                     return unsafe
                          .replace(/&/g, "&amp;")
@@ -787,7 +685,7 @@ a.click();
                         const note = this.notes.get(key);
                         const isBookmarked = this.isBookmarked(v.verse);
                         
-                        let verseClass = 'verse-container';
+                        let verseClass = 'verse-container inline';
                         if (highlight) verseClass += ` highlight-${highlight.color}`;
 
                         const verseNumberHtml = this.showVerseNumbers 
@@ -797,11 +695,6 @@ a.click();
                         const noteIndicator = note ? `<span class="inline-block w-2 h-2 bg-yellow-500 rounded-full ml-1 cursor-pointer" title="${this.escapeHtml(note)}" onclick="alert('${this.escapeHtml(note).replace(/'/g, "\\'")}')"></span>` : '';
                         
                         let text = this.escapeHtml(v.text.trim());
-                        if (this.searchQuery.length >= 3 && !this.isReference(this.searchQuery)) {
-                            const escapedQuery = this.escapeHtml(this.searchQuery);
-                            const regex = new RegExp(`(${escapedQuery})`, 'gi');
-                            text = text.replace(regex, '<span class="search-highlight">$1</span>');
-                        }
                         
                         versesHtml += `<p class="${verseClass}" data-verse-number="${v.verse}">${verseNumberHtml}${text}${noteIndicator}</p>`;
                     }
@@ -828,13 +721,6 @@ a.click();
                         let text1 = this.escapeHtml(v1.text.trim());
                         let text2 = this.escapeHtml(v2Text.trim());
 
-                        if (this.searchQuery.length >= 3 && !this.isReference(this.searchQuery)) {
-                             const escapedQuery = this.escapeHtml(this.searchQuery);
-                            const regex = new RegExp(`(${escapedQuery})`, 'gi');
-                            text1 = text1.replace(regex, '<span class="search-highlight">$1</span>');
-                            text2 = text2.replace(regex, '<span class="search-highlight">$1</span>');
-                        }
-
                         html += `
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 items-start ${verseClass}" data-verse-number="${v1.verse}">
                                 <p>${verseNumberHtml}${text1}${noteIndicator}</p>
@@ -844,6 +730,37 @@ a.click();
                     }
                     html += '</div>';
                     this.chapterContent = html;
+                },
+
+                // --- CHAPTER NAVIGATION AND THEME ---
+                async loadChapter() {
+                    this.isLoading = true;
+                    this.hasError = false;
+                    this.errorMessage = '';
+                    try {
+                        if (this.isParallel) {
+                            const [data1, data2] = await Promise.all([
+                                this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version1),
+                                this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version2)
+                            ]);
+                            this.renderParallelView(data1, data2);
+                        } else {
+                            const data = await this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version1);
+                            this.renderSingleView(data);
+                        }
+                        this.chapterTitle = `${this.selectedBook} ${this.selectedChapter}`;
+                        this.currentLocation = this.chapterTitle;
+                        this.saveState();
+                    } catch (error) {
+                        console.error("Failed to fetch chapter:", error);
+                        this.hasError = true;
+                        this.errorMessage = error.message;
+                        this.chapterTitle = "Error";
+                        this.currentLocation = "Error";
+                    } finally {
+                        this.isLoading = false;
+                        this.clearSelection();
+                    }
                 },
                 
                 bookChanged() {
@@ -861,7 +778,6 @@ a.click();
                 
                 prevChapter() {
                     if (!this.canGoPrev) return;
-                    
                     if (this.selectedChapter > 1) {
                         this.selectedChapter--;
                     } else {
@@ -877,9 +793,7 @@ a.click();
                 
                 nextChapter() {
                     if (!this.canGoNext) return;
-                    
-                    const currentBook = this.currentBook;
-                    if (this.selectedChapter < currentBook.chapters) {
+                    if (this.selectedChapter < this.currentBook.chapters) {
                         this.selectedChapter++;
                     } else {
                         const bookIndex = this.bibleBooks.findIndex(b => b.name === this.selectedBook);
