@@ -316,20 +316,22 @@
                 renderParallelView(data1, data2) {
                     const verses2Map = new Map(data2.verses.map(v => [v.verse, v.text]));
                     
-                    let html1 = '<div class="space-y-4">';
-                    let html2 = '<div class="space-y-4">';
+                    let html = '<div class="space-y-4">';
                     
                     data1.verses.forEach(v1 => {
-                        html1 += `<p><sup class="text-blue-600 dark:text-blue-400 font-semibold">${v1.verse}</sup> ${v1.text.trim()}</p>`;
-                        
                         const v2Text = verses2Map.get(v1.verse) || '[Verse not available in this version]';
-                        html2 += `<p><sup class="text-blue-600 dark:text-blue-400 font-semibold">${v1.verse}</sup> ${v2Text.trim()}</p>`;
+                        
+                        html += `
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 items-start">
+                                <p><sup class="text-blue-600 dark:text-blue-400 font-semibold">${v1.verse}</sup> ${v1.text.trim()}</p>
+                                <p><sup class="text-blue-600 dark:text-blue-400 font-semibold">${v1.verse}</sup> ${v2Text.trim()}</p>
+                            </div>
+                        `;
                     });
                     
-                    html1 += '</div>';
-                    html2 += '</div>';
+                    html += '</div>';
                     
-                    this.chapterContent = `<div class="grid grid-cols-1 md:grid-cols-2 gap-x-8">${html1}${html2}</div>`;
+                    this.chapterContent = html;
                 },
                 
                 bookChanged() {
