@@ -39,12 +39,16 @@
             border-radius: 2px;
         }
 
-        /* Verse hover effects */
+        /* Verse hover effects - improved for parallel mode */
+        .verse-container {
+            transition: all 0.2s ease;
+            border-radius: 4px;
+            padding: 8px;
+            margin: 2px 0;
+        }
+        
         .verse-container:hover {
             background-color: rgba(59, 130, 246, 0.05);
-            border-radius: 4px;
-            padding: 2px;
-            margin: -2px;
         }
 
         /* Table of contents grid */
@@ -54,10 +58,23 @@
             gap: 1rem;
         }
 
+        /* Better paragraph spacing */
+        .verse-text {
+            line-height: 1.8;
+            margin-bottom: 0.5rem;
+        }
+
         /* Print styles */
         @media print {
             .no-print { display: none !important; }
             body { font-size: 12pt; line-height: 1.5; }
+        }
+
+        /* Selection highlighting */
+        .selection-active {
+            background-color: rgba(59, 130, 246, 0.2);
+            border-radius: 3px;
+            padding: 2px;
         }
     </style>
 </head>
@@ -79,7 +96,7 @@
                         @input.debounce.300ms="performSearch()" 
                         @keydown.enter="quickJump()"
                         type="text" 
-                        placeholder="Search verses or type 'John 3:16'..." 
+                        placeholder="Search all verses or type 'John 3:16'..." 
                         class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                     <svg class="absolute left-3 top-2.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -124,9 +141,14 @@
                 </label>
             </div>
 
-            <button @click="exportNotes()" class="w-full p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            <button @click="exportNotes()" class="w-full p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 mb-2">
                 Export Notes & Bookmarks
             </button>
+            
+            <button @click="importNotes()" class="w-full p-2 bg-green-600 text-white rounded-md hover:bg-green-700">
+                Import Notes & Bookmarks
+            </button>
+            <input type="file" id="importFile" accept=".json" style="display: none;" @change="handleImportFile($event)">
         </div>
 
         <nav class="bg-white dark:bg-gray-800 p-3 shadow-sm flex flex-col sm:flex-row gap-4 justify-center items-center sticky top-0 z-10 no-print">
@@ -138,7 +160,7 @@
             
             <select x-model="selectedChapter" @change="chapterChanged()" class="w-full sm:w-auto p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <template x-for="i in (currentBook?.chapters || 0)" :key="i">
-                    <option :value="i + 1" x-text="`Chapter ${i + 1}`"></option>
+                    <option :value="i" x-text="`Chapter ${i}`"></option>
                 </template>
             </select>
             
@@ -202,7 +224,7 @@
                 </div>
 
                 <div x-show="!isLoading && !hasError" class="font-serif text-base leading-relaxed" x-html="chapterContent" @mouseup="handleTextSelection($event)">
-                    </div>
+                </div>
 
                 <div x-show="hasError" class="text-center text-red-500 mt-8 p-4 bg-red-100 dark:bg-red-900/20 rounded-lg" style="display: none;">
                     <p class="font-bold">Oops! Something went wrong.</p>
@@ -218,11 +240,12 @@
         </footer>
     </div>
 
+    <!-- Table of Contents Modal -->
     <div x-show="showTableOfContents" @click.away="showTableOfContents = false" x-transition class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="display: none;">
         <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-96 overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-bold">Table of Contents</h2>
-                <button @click="showTableOfContents = false" class="text-gray-500 hover:text-gray-700">×</button>
+                <button @click="showTableOfContents = false" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
             </div>
             <div class="toc-grid">
                 <template x-for="book in bibleBooks" :key="book.name">
@@ -235,11 +258,12 @@
         </div>
     </div>
 
+    <!-- Bookmarks Modal -->
     <div x-show="showBookmarks" @click.away="showBookmarks = false" x-transition class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="display: none;">
         <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-96 overflow-y-auto">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-bold">Bookmarks</h2>
-                <button @click="showBookmarks = false" class="text-gray-500 hover:text-gray-700">×</button>
+                <button @click="showBookmarks = false" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
             </div>
             <div x-show="bookmarks.length === 0" class="text-center text-gray-500 py-8" style="display: none;">
                 No bookmarks yet. Click on verse numbers to bookmark verses.
@@ -263,6 +287,7 @@
         </div>
     </div>
 
+    <!-- Note Modal -->
     <div x-show="showNoteModal" @click.away="showNoteModal = false" x-transition class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="display: none;">
         <div class="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
             <h3 class="text-lg font-bold mb-4">Add Note</h3>
@@ -337,6 +362,7 @@
                 highlights: new Map(),
                 notes: new Map(),
                 showVerseNumbers: true,
+                bibleData: new Map(), // Cache for loaded Bible data
                 
                 // --- COMPUTED ---
                 get currentBook() {
@@ -411,25 +437,25 @@
                     this.loadChapter();
                 },
 
-                async fetchChapterData(bookName, chapter, version) {
-                    const url = `translations/${version}/${bookName}.json`;
-                    const response = await fetch(url);
-                    if (!response.ok) throw new Error(`Could not load translation file: ${url}. Check if the file exists and the path is correct.`);
-                    const bookData = await response.json();
-                    if (!bookData[bookName] || !bookData[bookName][chapter]) {
-                        throw new Error(`Chapter ${chapter} not found in the file for ${bookName}.`);
+                // Fixed fetchChapterData for new JSON structure
+                async fetchChapterData(version) {
+                    const cacheKey = version;
+                    
+                    // Return cached data if available
+                    if (this.bibleData.has(cacheKey)) {
+                        return this.bibleData.get(cacheKey);
                     }
-                    return {
-                        book: bookName,
-                        chapter: chapter,
-                        verses: Object.entries(bookData[bookName][chapter]).map(([verse, text]) => ({
-                            verse: parseInt(verse),
-                            text: text
-                        }))
-                    };
+                    
+                    const url = `translations/${version}_bible.json`;
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error(`Could not load ${version} translation. Check if the file exists at: ${url}`);
+                    
+                    const data = await response.json();
+                    this.bibleData.set(cacheKey, data);
+                    return data;
                 },
 
-                // --- SEARCH ---
+                // --- SEARCH (Fixed to search all books) ---
                 async performSearch() {
                     if (this.searchQuery.length < 3) {
                         this.searchResults = [];
@@ -440,37 +466,39 @@
                     this.isLoading = true;
                     this.searchResults = [];
                     const query = this.searchQuery.toLowerCase();
-                    const queryRegex = new RegExp(`(${this.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+                    const queryRegex = new RegExp(`(${this.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\                bibleVersions:')})`, 'gi');
 
-                    for (const book of this.bibleBooks) {
-                        try {
-                            const url = `translations/${this.version1}/${book.name}.json`;
-                            const response = await fetch(url);
-                            if (!response.ok) continue;
-                            const data = await response.json();
-                            const bookData = data[book.name];
+                    try {
+                        // Load the bible data for the current version
+                        const bibleData = await this.fetchChapterData(this.version1);
+                        
+                        for (const book of this.bibleBooks) {
+                            const bookData = bibleData[book.name];
+                            if (!bookData) continue;
 
-                            if (bookData) {
-                                for (const [chapterNum, verses] of Object.entries(bookData)) {
-                                    for (const [verseNum, text] of Object.entries(verses)) {
-                                        if (text.toLowerCase().includes(query)) {
-                                            const highlightedText = text.replace(queryRegex, `<span class="search-highlight">$1</span>`);
-                                            this.searchResults.push({
-                                                book: book.name,
-                                                chapter: parseInt(chapterNum),
-                                                verse: parseInt(verseNum),
-                                                reference: `${book.name} ${chapterNum}:${verseNum}`,
-                                                text: highlightedText.substring(0, 150) + (text.length > 150 ? '...' : '')
-                                            });
-                                            if (this.searchResults.length >= 20) break;
-                                        }
+                            for (const [chapterNum, verses] of Object.entries(bookData)) {
+                                for (const [verseNum, text] of Object.entries(verses)) {
+                                    if (text.toLowerCase().includes(query)) {
+                                        const highlightedText = text.replace(queryRegex, `<span class="search-highlight">$1</span>`);
+                                        this.searchResults.push({
+                                            book: book.name,
+                                            chapter: parseInt(chapterNum),
+                                            verse: parseInt(verseNum),
+                                            reference: `${book.name} ${chapterNum}:${verseNum}`,
+                                            text: highlightedText.substring(0, 150) + (text.length > 150 ? '...' : '')
+                                        });
+                                        if (this.searchResults.length >= 50) break;
                                     }
-                                    if (this.searchResults.length >= 20) break;
                                 }
+                                if (this.searchResults.length >= 50) break;
                             }
-                        } catch (e) { console.warn(`Could not search in ${book.name}.json`); }
-                        if (this.searchResults.length >= 20) break;
+                            if (this.searchResults.length >= 50) break;
+                        }
+                    } catch (e) {
+                        console.error('Search error:', e);
+                        this.errorMessage = 'Search failed: ' + e.message;
                     }
+                    
                     this.isLoading = false;
                 },
 
@@ -535,8 +563,7 @@
                     this.loadChapter();
                 },
 
-                // ... other functions
-                 clearSelection() {
+                clearSelection() {
                     this.selectedText = '';
                     this.selectedVerseInfo = null;
                     window.getSelection().removeAllRanges();
@@ -550,7 +577,7 @@
                     this.showNoteModal = false;
                 },
 
-                // Text selection and highlighting
+                // Fixed text selection and highlighting
                 handleTextSelection(event) {
                     this.$nextTick(() => {
                         const selection = window.getSelection();
@@ -559,16 +586,19 @@
                         if (selectedText.length > 0) {
                             this.selectedText = selectedText;
                             
-                            let element = selection.anchorNode.parentElement;
-                            let verseNumber = null;
-                            while(element && !verseNumber) {
-                                verseNumber = element.getAttribute('data-verse-number');
-                                if (!verseNumber) {
-                                    element = element.parentElement;
-                                }
+                            // Find the verse container
+                            let element = selection.anchorNode;
+                            while(element && element.nodeType !== 1) {
+                                element = element.parentElement;
+                            }
+                            
+                            let verseContainer = element;
+                            while(verseContainer && !verseContainer.hasAttribute('data-verse-number')) {
+                                verseContainer = verseContainer.parentElement;
                             }
 
-                            if (verseNumber) {
+                            if (verseContainer) {
+                                const verseNumber = verseContainer.getAttribute('data-verse-number');
                                 this.selectedVerseInfo = {
                                     book: this.selectedBook,
                                     chapter: this.selectedChapter,
@@ -600,7 +630,12 @@
                 },
 
                 saveNote() {
-                    if (!this.selectedVerseInfo || !this.currentNote.trim()) return;
+                    if (!this.selectedVerseInfo || !this.currentNote.trim()) {
+                        this.showNoteModal = false;
+                        this.currentNote = '';
+                        this.clearSelection();
+                        return;
+                    }
                     
                     const key = `${this.selectedVerseInfo.book}-${this.selectedVerseInfo.chapter}-${this.selectedVerseInfo.verse}`;
                     this.notes.set(key, this.currentNote.trim());
@@ -677,6 +712,7 @@
                     return `${this.selectedBook}-${this.selectedChapter}-${verse}`;
                 },
                 
+                // Fixed rendering functions for better paragraph display
                 renderSingleView(data) {
                     let versesHtml = '';
                     for(const v of data.verses) {
@@ -685,7 +721,7 @@
                         const note = this.notes.get(key);
                         const isBookmarked = this.isBookmarked(v.verse);
                         
-                        let verseClass = 'verse-container inline';
+                        let verseClass = 'verse-container verse-text';
                         if (highlight) verseClass += ` highlight-${highlight.color}`;
 
                         const verseNumberHtml = this.showVerseNumbers 
@@ -696,14 +732,14 @@
                         
                         let text = this.escapeHtml(v.text.trim());
                         
-                        versesHtml += `<p class="${verseClass}" data-verse-number="${v.verse}">${verseNumberHtml}${text}${noteIndicator}</p>`;
+                        versesHtml += `<div class="${verseClass}" data-verse-number="${v.verse}">${verseNumberHtml}${text}${noteIndicator}</div>`;
                     }
-                    this.chapterContent = `<div class="space-y-4">${versesHtml}</div>`;
+                    this.chapterContent = versesHtml;
                 },
                 
                 renderParallelView(data1, data2) {
                     const verses2Map = new Map(data2.verses.map(v => [v.verse, v.text]));
-                    let html = '<div class="space-y-4">';
+                    let html = '';
                     
                     for(const v1 of data1.verses) {
                         const v2Text = verses2Map.get(v1.verse) || '[Verse not available in this version]';
@@ -722,32 +758,37 @@
                         let text2 = this.escapeHtml(v2Text.trim());
 
                         html += `
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 items-start ${verseClass}" data-verse-number="${v1.verse}">
-                                <p>${verseNumberHtml}${text1}${noteIndicator}</p>
-                                <p>${this.showVerseNumbers ? `<sup class="text-blue-600 dark:text-blue-400 font-semibold">${v1.verse}</sup>` : ''} ${text2}</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 items-start ${verseClass} mb-4" data-verse-number="${v1.verse}">
+                                <div class="verse-text">${verseNumberHtml}${text1}${noteIndicator}</div>
+                                <div class="verse-text">${this.showVerseNumbers ? `<sup class="text-blue-600 dark:text-blue-400 font-semibold">${v1.verse}</sup>` : ''} ${text2}</div>
                             </div>
                         `;
                     }
-                    html += '</div>';
                     this.chapterContent = html;
                 },
 
-                // --- CHAPTER NAVIGATION AND THEME ---
+                // --- FIXED CHAPTER NAVIGATION ---
                 async loadChapter() {
                     this.isLoading = true;
                     this.hasError = false;
                     this.errorMessage = '';
                     try {
                         if (this.isParallel) {
-                            const [data1, data2] = await Promise.all([
-                                this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version1),
-                                this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version2)
+                            const [bibleData1, bibleData2] = await Promise.all([
+                                this.fetchChapterData(this.version1),
+                                this.fetchChapterData(this.version2)
                             ]);
+                            
+                            const data1 = this.extractChapterData(bibleData1, this.selectedBook, this.selectedChapter);
+                            const data2 = this.extractChapterData(bibleData2, this.selectedBook, this.selectedChapter);
+                            
                             this.renderParallelView(data1, data2);
                         } else {
-                            const data = await this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version1);
+                            const bibleData = await this.fetchChapterData(this.version1);
+                            const data = this.extractChapterData(bibleData, this.selectedBook, this.selectedChapter);
                             this.renderSingleView(data);
                         }
+                        
                         this.chapterTitle = `${this.selectedBook} ${this.selectedChapter}`;
                         this.currentLocation = this.chapterTitle;
                         this.saveState();
@@ -761,6 +802,23 @@
                         this.isLoading = false;
                         this.clearSelection();
                     }
+                },
+
+                extractChapterData(bibleData, bookName, chapter) {
+                    if (!bibleData[bookName] || !bibleData[bookName][chapter]) {
+                        throw new Error(`Chapter ${chapter} not found in ${bookName}`);
+                    }
+                    
+                    const verses = Object.entries(bibleData[bookName][chapter]).map(([verse, text]) => ({
+                        verse: parseInt(verse),
+                        text: text
+                    }));
+                    
+                    return {
+                        book: bookName,
+                        chapter: chapter,
+                        verses: verses
+                    };
                 },
                 
                 bookChanged() {
@@ -824,6 +882,67 @@
                         this.fontSize--;
                         localStorage.setItem('bible-font-size', this.fontSize);
                     }
+                },
+
+                // Export/Import functionality
+                exportNotes() {
+                    const data = {
+                        bookmarks: this.bookmarks,
+                        highlights: [...this.highlights],
+                        notes: [...this.notes],
+                        settings: {
+                            fontSize: this.fontSize,
+                            showVerseNumbers: this.showVerseNumbers,
+                            isDark: this.isDark
+                        },
+                        exportDate: new Date().toISOString()
+                    };
+                    
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `bible-notes-${new Date().toISOString().split('T')[0]}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                },
+
+                importNotes() {
+                    document.getElementById('importFile').click();
+                },
+
+                handleImportFile(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            
+                            if (data.bookmarks) this.bookmarks = data.bookmarks;
+                            if (data.highlights) this.highlights = new Map(data.highlights);
+                            if (data.notes) this.notes = new Map(data.notes);
+                            if (data.settings) {
+                                if (data.settings.fontSize) this.fontSize = data.settings.fontSize;
+                                if (data.settings.showVerseNumbers !== undefined) this.showVerseNumbers = data.settings.showVerseNumbers;
+                                if (data.settings.isDark !== undefined) {
+                                    this.isDark = data.settings.isDark;
+                                    document.documentElement.classList.toggle('dark', this.isDark);
+                                }
+                            }
+                            
+                            this.saveUserData();
+                            this.loadChapter();
+                            alert('Notes and bookmarks imported successfully!');
+                        } catch (error) {
+                            alert('Error importing file: ' + error.message);
+                        }
+                    };
+                    reader.readAsText(file);
+                    
+                    // Reset the input
+                    event.target.value = '';
                 }
             }
         }
