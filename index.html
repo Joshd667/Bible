@@ -1,1 +1,400 @@
+<!DOCTYPE html>
+<html lang="en" class="light" x-data="bibleApp()">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Bible App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <script>
+        // Apply theme from localStorage on initial load
+        if (localStorage.getItem('bible-theme') === 'dark' || (!('bible-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
 
+        // Custom Tailwind theme configuration
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Merriweather', 'serif'],
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        /* Basic styling for scrollbars */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        .dark ::-webkit-scrollbar-track { background: #2d3748; }
+        .dark ::-webkit-scrollbar-thumb { background: #718096; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #a0aec0; }
+        
+        /* Loading spinner animation */
+        .loader {
+            border-top-color: #3498db;
+            -webkit-animation: spinner 1.5s linear infinite;
+            animation: spinner 1.5s linear infinite;
+        }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Styling for the parallel mode toggle */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #4f46e5;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #4f46e5;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans transition-colors duration-300">
+
+    <div class="flex flex-col h-screen">
+        <!-- Header -->
+        <header class="bg-white dark:bg-gray-800 shadow-md p-4 flex justify-between items-center z-20">
+            <h1 class="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">The Holy Bible</h1>
+            
+            <!-- Settings Controls -->
+            <div class="flex items-center space-x-2 md:space-x-4">
+                 <!-- Font Size Controls -->
+                <div class="flex items-center space-x-2">
+                    <button @click="decreaseFontSize()" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
+                    </button>
+                    <span class="text-sm font-semibold">Aa</span>
+                    <button @click="increaseFontSize()" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    </button>
+                </div>
+
+                <!-- Theme Toggle -->
+                <button @click="toggleTheme()" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <svg x-show="!isDark" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.706-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm-.707 10.607a1 1 0 011.414 0l.707-.707a1 1 0 111.414 1.414l-.707.707a1 1 0 01-1.414 0zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path></svg>
+                    <svg x-show="isDark" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Navigation -->
+        <nav class="bg-white dark:bg-gray-800 p-3 shadow-sm flex flex-col sm:flex-row gap-4 justify-center items-center sticky top-0 z-10">
+            <select x-model="selectedBook" @change="bookChanged()" class="w-full sm:w-auto p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <template x-for="book in bibleBooks" :key="book.name">
+                    <option :value="book.name" x-text="book.name"></option>
+                </template>
+            </select>
+            
+            <select x-model="selectedChapter" @change="chapterChanged()" class="w-full sm:w-auto p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <template x-for="i in currentBook?.chapters || 0" :key="i">
+                    <option :value="i" x-text="`Chapter ${i}`"></option>
+                </template>
+            </select>
+            
+            <select x-model="version1" @change="loadChapter()" class="w-full sm:w-auto p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <template x-for="version in bibleVersions" :key="version.id">
+                    <option :value="version.id" x-text="version.name"></option>
+                </template>
+            </select>
+            
+            <!-- Parallel Mode Controls -->
+            <div class="flex items-center gap-2">
+                <label for="parallel-toggle" class="text-sm font-medium">Parallel</label>
+                <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                    <input type="checkbox" name="parallel-toggle" id="parallel-toggle" x-model="isParallel" @change="toggleParallel()" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                    <label for="parallel-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                </div>
+                <select x-model="version2" @change="loadChapter()" x-show="isParallel" class="w-full sm:w-auto p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <template x-for="version in bibleVersions" :key="version.id">
+                        <option :value="version.id" x-text="version.name"></option>
+                    </template>
+                </select>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="flex-grow overflow-y-auto p-4 md:p-8">
+            <div class="max-w-7xl mx-auto" :style="`font-size: ${fontSize}px`">
+                <h2 x-text="chapterTitle" class="text-3xl font-bold mb-6 text-center text-gray-900 dark:text-white"></h2>
+                
+                <div x-show="isLoading" class="flex justify-center items-center h-64">
+                    <div class="loader ease-linear rounded-full border-8 border-t-8 border-gray-200 dark:border-gray-600 h-24 w-24"></div>
+                </div>
+
+                <div x-show="!isLoading && !hasError" class="font-serif text-base leading-relaxed" x-html="chapterContent">
+                    <!-- Verses will be inserted here -->
+                </div>
+
+                <div x-show="hasError" class="text-center text-red-500 mt-8 p-4 bg-red-100 dark:bg-red-900/20 rounded-lg">
+                    <p class="font-bold">Oops! Something went wrong.</p>
+                    <p>Could not load the chapter. One of the selected versions might not be available. Please try another version.</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer Navigation -->
+        <footer class="bg-white dark:bg-gray-800 p-3 shadow-up flex justify-between items-center sticky bottom-0 z-10">
+            <button @click="prevChapter()" :disabled="!canGoPrev" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">Previous</button>
+            <div x-text="currentLocation" class="text-sm font-semibold text-center"></div>
+            <button @click="nextChapter()" :disabled="!canGoNext" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors">Next</button>
+        </footer>
+    </div>
+
+    <script>
+        function bibleApp() {
+            return {
+                // --- Data ---
+                bibleBooks: [
+                    { name: 'Genesis', chapters: 50 }, { name: 'Exodus', chapters: 40 }, { name: 'Leviticus', chapters: 27 },
+                    { name: 'Numbers', chapters: 36 }, { name: 'Deuteronomy', chapters: 34 }, { name: 'Joshua', chapters: 24 },
+                    { name: 'Judges', chapters: 21 }, { name: 'Ruth', chapters: 4 }, { name: '1 Samuel', chapters: 31 },
+                    { name: '2 Samuel', chapters: 24 }, { name: '1 Kings', chapters: 22 }, { name: '2 Kings', chapters: 25 },
+                    { name: '1 Chronicles', chapters: 29 }, { name: '2 Chronicles', chapters: 36 }, { name: 'Ezra', chapters: 10 },
+                    { name: 'Nehemiah', chapters: 13 }, { name: 'Esther', chapters: 10 }, { name: 'Job', chapters: 42 },
+                    { name: 'Psalms', chapters: 150 }, { name: 'Proverbs', chapters: 31 }, { name: 'Ecclesiastes', chapters: 12 },
+                    { name: 'Song of Solomon', chapters: 8 }, { name: 'Isaiah', chapters: 66 }, { name: 'Jeremiah', chapters: 52 },
+                    { name: 'Lamentations', chapters: 5 }, { name: 'Ezekiel', chapters: 48 }, { name: 'Daniel', chapters: 12 },
+                    { name: 'Hosea', chapters: 14 }, { name: 'Joel', chapters: 3 }, { name: 'Amos', chapters: 9 },
+                    { name: 'Obadiah', chapters: 1 }, { name: 'Jonah', chapters: 4 }, { name: 'Micah', chapters: 7 },
+                    { name: 'Nahum', chapters: 3 }, { name: 'Habakkuk', chapters: 3 }, { name: 'Zephaniah', chapters: 3 },
+                    { name: 'Haggai', chapters: 2 }, { name: 'Zechariah', chapters: 14 }, { name: 'Malachi', chapters: 4 },
+                    { name: 'Matthew', chapters: 28 }, { name: 'Mark', chapters: 16 }, { name: 'Luke', chapters: 24 },
+                    { name: 'John', chapters: 21 }, { name: 'Acts', chapters: 28 }, { name: 'Romans', chapters: 16 },
+                    { name: '1 Corinthians', chapters: 16 }, { name: '2 Corinthians', chapters: 13 }, { name: 'Galatians', chapters: 6 },
+                    { name: 'Ephesians', chapters: 6 }, { name: 'Philippians', chapters: 4 }, { name: 'Colossians', chapters: 4 },
+                    { name: '1 Thessalonians', chapters: 5 }, { name: '2 Thessalonians', chapters: 3 }, { name: '1 Timothy', chapters: 6 },
+                    { name: '2 Timothy', chapters: 4 }, { name: 'Titus', chapters: 3 }, { name: 'Philemon', chapters: 1 },
+                    { name: 'Hebrews', chapters: 13 }, { name: 'James', chapters: 5 }, { name: '1 Peter', chapters: 5 },
+                    { name: '2 Peter', chapters: 3 }, { name: '1 John', chapters: 5 }, { name: '2 John', chapters: 1 },
+                    { name: '3 John', chapters: 1 }, { name: 'Jude', chapters: 1 }, { name: 'Revelation', chapters: 22 }
+                ],
+                bibleVersions: [
+                    { id: 'ESV', name: 'English Standard Version' },
+                    { id: 'ESVUK', name: 'English Standard Version (UK)' },
+                    { id: 'KJV', name: 'King James Version' },
+                    { id: 'NIVUK', name: 'New International Version (UK)' }
+                ],
+                
+                // --- State ---
+                selectedBook: 'Genesis',
+                selectedChapter: 1,
+                version1: 'ESV',
+                version2: 'KJV',
+                isParallel: false,
+                fontSize: 16,
+                isDark: false,
+                isLoading: false,
+                hasError: false,
+                chapterTitle: '',
+                chapterContent: '',
+                currentLocation: '',
+                
+                // --- Computed Properties ---
+                get currentBook() {
+                    return this.bibleBooks.find(book => book.name === this.selectedBook);
+                },
+                
+                get canGoPrev() {
+                    const bookIndex = this.bibleBooks.findIndex(b => b.name === this.selectedBook);
+                    return !(bookIndex === 0 && this.selectedChapter === 1);
+                },
+                
+                get canGoNext() {
+                    const bookIndex = this.bibleBooks.findIndex(b => b.name === this.selectedBook);
+                    const isLastChapter = this.selectedChapter === this.bibleBooks[bookIndex].chapters;
+                    return !(bookIndex === this.bibleBooks.length - 1 && isLastChapter);
+                },
+                
+                // --- Methods ---
+                init() {
+                    this.loadSavedState();
+                    this.loadChapter();
+                },
+                
+                loadSavedState() {
+                    // Load theme
+                    this.isDark = document.documentElement.classList.contains('dark');
+                    
+                    // Load font size
+                    const savedFontSize = localStorage.getItem('bible-font-size');
+                    if (savedFontSize) {
+                        this.fontSize = Number(savedFontSize);
+                    }
+                    
+                    // Load Bible state
+                    const savedState = JSON.parse(localStorage.getItem('bible-state') || '{}');
+                    if (savedState.book) this.selectedBook = savedState.book;
+                    if (savedState.chapter) this.selectedChapter = savedState.chapter;
+                    if (savedState.version1) this.version1 = savedState.version1;
+                    if (savedState.version2) this.version2 = savedState.version2;
+                    if (savedState.parallel !== undefined) this.isParallel = savedState.parallel;
+                },
+                
+                saveState() {
+                    const state = {
+                        book: this.selectedBook,
+                        chapter: this.selectedChapter,
+                        version1: this.version1,
+                        version2: this.version2,
+                        parallel: this.isParallel
+                    };
+                    localStorage.setItem('bible-state', JSON.stringify(state));
+                },
+                
+                async loadChapter() {
+                    this.isLoading = true;
+                    this.hasError = false;
+                    this.chapterContent = '';
+                    
+                    try {
+                        if (this.isParallel) {
+                            const [data1, data2] = await Promise.all([
+                                this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version1),
+                                this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version2)
+                            ]);
+                            this.renderParallelView(data1, data2);
+                        } else {
+                            const data = await this.fetchChapterData(this.selectedBook, this.selectedChapter, this.version1);
+                            this.renderSingleView(data);
+                        }
+                        
+                        this.chapterTitle = `${this.selectedBook} ${this.selectedChapter}`;
+                        this.currentLocation = `${this.selectedBook} ${this.selectedChapter}`;
+                        this.saveState();
+                    } catch (error) {
+                        console.error("Failed to fetch chapter:", error);
+                        this.hasError = true;
+                        this.chapterTitle = "Error";
+                        this.currentLocation = "Error";
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+                
+                async fetchChapterData(book, chapter, version) {
+                    // Convert book name to filename format
+                    const filename = book.replace(/\s+/g, ' '); // Ensure single spaces
+                    const url = `translations/${version}/${filename}.json`;
+                    
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status} for ${url}`);
+                    }
+                    
+                    const data = await response.json();
+                    const bookData = data[book];
+                    if (!bookData || !bookData[chapter]) {
+                        throw new Error(`Chapter ${chapter} not found in ${book}`);
+                    }
+                    
+                    return {
+                        book: book,
+                        chapter: chapter,
+                        verses: Object.entries(bookData[chapter]).map(([verse, text]) => ({
+                            verse: parseInt(verse),
+                            text: text
+                        }))
+                    };
+                },
+                
+                renderSingleView(data) {
+                    const versesHtml = data.verses.map(v =>
+                        `<p><sup class="text-blue-600 dark:text-blue-400 font-semibold">${v.verse}</sup> ${v.text.trim()}</p>`
+                    ).join('');
+                    this.chapterContent = `<div class="space-y-4">${versesHtml}</div>`;
+                },
+                
+                renderParallelView(data1, data2) {
+                    const verses2Map = new Map(data2.verses.map(v => [v.verse, v.text]));
+                    
+                    let html1 = '<div class="space-y-4">';
+                    let html2 = '<div class="space-y-4">';
+                    
+                    data1.verses.forEach(v1 => {
+                        html1 += `<p><sup class="text-blue-600 dark:text-blue-400 font-semibold">${v1.verse}</sup> ${v1.text.trim()}</p>`;
+                        
+                        const v2Text = verses2Map.get(v1.verse) || '[Verse not available in this version]';
+                        html2 += `<p><sup class="text-blue-600 dark:text-blue-400 font-semibold">${v1.verse}</sup> ${v2Text.trim()}</p>`;
+                    });
+                    
+                    html1 += '</div>';
+                    html2 += '</div>';
+                    
+                    this.chapterContent = `<div class="grid grid-cols-1 md:grid-cols-2 gap-x-8">${html1}${html2}</div>`;
+                },
+                
+                bookChanged() {
+                    this.selectedChapter = 1;
+                    this.loadChapter();
+                },
+                
+                chapterChanged() {
+                    this.loadChapter();
+                },
+                
+                toggleParallel() {
+                    this.loadChapter();
+                },
+                
+                prevChapter() {
+                    if (!this.canGoPrev) return;
+                    
+                    const bookIndex = this.bibleBooks.findIndex(b => b.name === this.selectedBook);
+                    if (this.selectedChapter > 1) {
+                        this.selectedChapter--;
+                    } else if (bookIndex > 0) {
+                        const prevBook = this.bibleBooks[bookIndex - 1];
+                        this.selectedBook = prevBook.name;
+                        this.selectedChapter = prevBook.chapters;
+                    }
+                    this.loadChapter();
+                },
+                
+                nextChapter() {
+                    if (!this.canGoNext) return;
+                    
+                    const bookIndex = this.bibleBooks.findIndex(b => b.name === this.selectedBook);
+                    const currentBook = this.bibleBooks[bookIndex];
+                    if (this.selectedChapter < currentBook.chapters) {
+                        this.selectedChapter++;
+                    } else if (bookIndex < this.bibleBooks.length - 1) {
+                        const nextBook = this.bibleBooks[bookIndex + 1];
+                        this.selectedBook = nextBook.name;
+                        this.selectedChapter = 1;
+                    }
+                    this.loadChapter();
+                },
+                
+                toggleTheme() {
+                    this.isDark = !this.isDark;
+                    document.documentElement.classList.toggle('dark');
+                    localStorage.setItem('bible-theme', this.isDark ? 'dark' : 'light');
+                },
+                
+                increaseFontSize() {
+                    if (this.fontSize < 32) {
+                        this.fontSize++;
+                        localStorage.setItem('bible-font-size', this.fontSize);
+                    }
+                },
+                
+                decreaseFontSize() {
+                    if (this.fontSize > 12) {
+                        this.fontSize--;
+                        localStorage.setItem('bible-font-size', this.fontSize);
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>
